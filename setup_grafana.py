@@ -93,7 +93,7 @@ def main():
         "targets": [
             {
                 "datasource": ds_ref,
-                "query": "SELECT mean(\"value\") FROM \"heart_rate\" WHERE $timeFilter GROUP BY time($__interval) fill(null)",
+                "query": "SELECT mean(\"value\") FROM \"heart_rate\" WHERE $timeFilter GROUP BY time($__interval) fill(linear)",
                 "rawQuery": True,
                 "refId": "A",
                 "format": "time_series"
@@ -106,7 +106,8 @@ def main():
                     "lineInterpolation": "smooth",
                     "lineWidth": 2,
                     "fillOpacity": 10,
-                    "gradientMode": "opacity"
+                    "gradientMode": "opacity",
+                    "spanNulls": True
                 },
                 "color": {
                     "mode": "fixed",
@@ -222,7 +223,86 @@ def main():
         }
     }
 
-    create_dashboard("Samsung Health Overview", [hr_panel, steps_panel, cal_panel, sleep_panel])
+    detailed_steps_panel = {
+        "type": "timeseries",
+        "title": "Detailed Steps (10m interval)",
+        "gridPos": {"x": 0, "y": 30, "w": 24, "h": 10},
+        "datasource": ds_ref,
+        "targets": [
+            {
+                "datasource": ds_ref,
+                "query": "SELECT sum(\"count\") FROM \"steps_detailed\" WHERE $timeFilter GROUP BY time(10m) fill(null)",
+                "rawQuery": True,
+                "refId": "A",
+                "format": "time_series"
+            }
+        ],
+        "fieldConfig": {
+            "defaults": {
+                "custom": {
+                    "drawStyle": "bars",
+                    "lineWidth": 1,
+                    "fillOpacity": 80
+                },
+                "color": {
+                    "mode": "fixed",
+                    "fixedColor": "green"
+                },
+                "unit": "short"
+            },
+            "overrides": []
+        }
+    }
+    
+    sleep_stage_panel = {
+        "type": "state-timeline",
+        "title": "Sleep Stages",
+        "gridPos": {"x": 0, "y": 40, "w": 24, "h": 7},
+        "datasource": ds_ref,
+        "targets": [
+            {
+                "datasource": ds_ref,
+                "query": "SELECT last(\"stage\") FROM \"sleep_stage\" WHERE $timeFilter GROUP BY time($__interval) fill(previous)",
+                "rawQuery": True,
+                "refId": "A",
+                "format": "time_series"
+            }
+        ],
+        "fieldConfig": {
+            "defaults": {
+                "color": {
+                    "mode": "thresholds"
+                },
+                "custom": {
+                    "lineWidth": 0,
+                    "fillOpacity": 80
+                },
+                "mappings": [
+                    {
+                        "options": {
+                            "0": {"text": "Deep", "color": "dark-purple"},
+                            "1": {"text": "Light", "color": "light-blue"},
+                            "2": {"text": "REM", "color": "green"},
+                            "3": {"text": "Awake", "color": "transparent"}
+                        },
+                        "type": "value"
+                    }
+                ],
+                "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                        {"color": "dark-purple", "value": None},
+                        {"color": "light-blue", "value": 1},
+                        {"color": "green", "value": 2},
+                        {"color": "transparent", "value": 3}
+                    ]
+                }
+            },
+            "overrides": []
+        }
+    }
+
+    create_dashboard("Samsung Health Overview", [hr_panel, steps_panel, cal_panel, sleep_panel, detailed_steps_panel, sleep_stage_panel])
 
 if __name__ == "__main__":
     main()
